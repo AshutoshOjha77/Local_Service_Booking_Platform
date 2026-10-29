@@ -1,11 +1,13 @@
 import os 
-class setting:
+class Setting:
     SECRET_KEY: str = os.getenv("SECRET_KEY","super-secret-key-for-production")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    REDIS_URL: str = os.getenv("REDIS_URL","https://localhost://6379:0/")
-    ELASTICSEARCH_URL: str = os.getenv("ELASTICSEARCH_URL","https://localhost://9200")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    ELASTICSEARCH_URL: str = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
+    DATABASE_URL: str = os.getenv("DATABASE_URL","postgresql://admin:secret@localhost:5433/local_services_db")
     
+setting = Setting()
 
     
