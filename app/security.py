@@ -1,9 +1,9 @@
 import jwt
-from config import setting
+from app.config import setting
 from fastapi import HTTPException, status
 import bcrypt
 from datetime import datetime,timedelta,timezone
-from redis_client import get_redis
+from app.redis_client import get_redis
 
 def hash_password(password: str) -> str:
     password_bytes = password.encode("utf-8")
