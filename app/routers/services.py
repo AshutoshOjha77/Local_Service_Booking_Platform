@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
-import models
-from  database import get_db
-from redis_client import get_redis
-from elasticsearch_client import get_elastic  
-import schemas
-from auth import get_current_user_id
+from app import models
+from app.database import get_db
+from app.redis_client import get_redis
+from app.elasticsearch_client import get_elastic  
+from app import schemas
+from app.routers.auth import get_current_user_id
 from typing import List
 import json
 

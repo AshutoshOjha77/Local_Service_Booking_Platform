@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from database import get_db
+from app.database import get_db
 from sqlalchemy.orm import Session
-from auth import get_current_user_id
-import models
-import redis_client
-import elasticsearch_client
-import schemas
+from app.routers.auth import get_current_user_id
+from app import models
+from app import  redis_client
+from app import elasticsearch_client
+from app import schemas
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
