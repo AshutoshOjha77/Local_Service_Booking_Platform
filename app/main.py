@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
-from database import engine, base
-from routers import auth, services, providers, bookings, admin
+from app.database import engine, base
+from app.routers import auth, services, providers, bookings, admin
 
 # Create database tables
 base.metadata.create_all(bind=engine)
