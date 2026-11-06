@@ -5,8 +5,8 @@ redis_client: redis.Redis | None = None
 
 async def init_redis():
     global redis_client
-    redis_client = redis.from_url(setting.REDIS_URL, encode="utf-8", decode_responses=True, connections=20)
-    if redis_client.ping():
+    redis_client = redis.from_url(setting.REDIS_URL, decode_responses=True)
+    if await redis_client.ping():
         print("Redis is intialized")
 
 async def close_redis():

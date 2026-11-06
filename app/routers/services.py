@@ -9,7 +9,7 @@ from app.routers.auth import get_current_user_id
 from typing import List
 import json
 
-router = APIRouter()
+router = APIRouter(prefix="/Services", tags=["Services"])
 
 @router.post("/add/services", response_model=schemas.ServiceResponse, status_code=status.HTTP_201_CREATED)
 async def add_services(payload: schemas.ServiceCreate, db: Session = Depends(get_db), current_user_id: int = Depends(get_current_user_id)):
@@ -25,7 +25,9 @@ async def add_services(payload: schemas.ServiceCreate, db: Session = Depends(get
         service= payload.service,
         charge_rs= payload.charge_rs,
         city= payload.city,
-        is_active= payload.is_active
+        is_active= payload.is_active,
+        provider_id=user.id,
+        provider_name=user.username
     )
     db.add(new_service)
     db.commit()
@@ -35,9 +37,14 @@ async def add_services(payload: schemas.ServiceCreate, db: Session = Depends(get
 
     await es.index(index="services", id=str(new_service.id), document={
         "id": new_service.id,
+        "title": new_service.title,
+        "description": new_service.description,
         "service": new_service.service,
         "charge_rs": new_service.charge_rs,
-        "city": new_service.city
+        "city": new_service.city,
+        "provider_id": new_service.provider_id,
+        "provider_name": new_service.provider_name,
+        "is_active": new_service.is_active
     })
     r = get_redis()
     await r.delete("catalog:Services")
@@ -73,31 +80,66 @@ async def show_all_services(db:Session = Depends(get_db), current_user_id: int =
     await r.setex(cache_key, 300, json.dumps(product_list))
     return product_list
 
-@router.get("/services/search?q=")
+@router.get("/search")
 async def search_services(q: str):
     if not q or not q.strip():
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User must enter the query to get desired results")
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Search query is required"
+        )
+
     es = get_elastic()
+
     query_body = {
-        "query_body":{
-            "multi-match":{
+        "query": {
+            "multi_match": {
                 "query": q,
-                "field": ["name"],
+                "fields": ["title", "service", "description", "city"],
                 "fuzziness": "AUTO"
             }
         }
     }
+
     response = await es.search(index="services", body=query_body)
-    result = []
+
+    results = []
     for hit in response["hits"]["hits"]:
-        result.append(hit["_source"])
+        results.append(hit["_source"])
+
+    total = response["hits"]["total"]
+    # if isinstance(total, dict):
+    #     total = total.get("value", 0)
 
     return {
         "query": q,
-        "total": response["hits"]["total"]["Value"],
-        "result":result 
+        "total": total,
+        "results": results
     }
+# @router.post("/reindex")
+# async def reindex_services(db: Session = Depends(get_db)):
+#     es = get_elastic()
+#     services = db.query(models.Services).all()
+
+#     count = 0
+#     for s in services:
+#         await es.index(
+#             index="services",
+#             id=str(s.id),
+#             document={
+#                 "id": s.id,
+#                 "title": s.title,
+#                 "description": s.description,
+#                 "service": s.service,
+#                 "charge_rs": s.charge_rs,
+#                 "city": s.city,
+#                 "provider_id": s.provider_id,
+#                 "provider_name": s.provider_name,
+#                 "is_active": s.is_active
+#             }
+#         )
+#         count += 1
+#     await es.indices.refresh(index="services")
+#     return {"message": f"Reindexed {count} services"}
 
 @router.get("/service/{id}", response_model=schemas.ServiceResponse)
 def get_service(id: int, db : Session = Depends(get_db), current_user_id:int = Depends(get_current_user_id)):

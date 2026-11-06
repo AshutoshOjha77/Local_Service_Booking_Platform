@@ -30,32 +30,32 @@ def create_refresh_tokens(data: dict)-> str:
     payload.update({"exp":expire,"type":"refresh"})
     return jwt.encode(payload, setting.SECRET_KEY, algorithm=setting.ALGORITHM)
 
-async def blacklist_tokens(token: str, expired_time: int = 60*60*24*7) -> None:
+async def blacklist_token(token: str, expired_time: int = 60 * 60 * 24 * 7) -> None:
     r = get_redis()
-    await r.setex(token, expired_time, "1")
+    await r.setex(f"blacklist:{token}", expired_time, "1")
 
-async def is_blacklist_token(token:str) -> bool:
-    r= get_redis()
-    value = await r.get(f"Blacklist:{token}")
+
+async def is_blacklist_token(token: str) -> bool:
+    r = get_redis()
+    value = await r.get(f"blacklist:{token}")
     return value is not None
 
 
-
-async def verify_token(token: str, expected_token: str)-> dict:
+async def verify_token(token: str, expected_type: str) -> dict:
     if await is_blacklist_token(token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
+        raise HTTPException(status_code=401, detail="Token has been revoked")
+
     try:
-        payload = jwt.decode(token,setting.SECRET_KEY,algorithms=[setting.ALGORITHM])
-        if payload.get("type") != expected_token:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token is invalid")
+        payload = jwt.decode(
+            token,
+            setting.SECRET_KEY,
+            algorithms=[setting.ALGORITHM]
+        )
+        if payload.get("type") != expected_type:
+            raise HTTPException(status_code=401, detail="Token is invalid")
         return payload
+
     except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token is expired")
-    except jwt.PyJWKClientConnectionError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate token")
-    
-    
-        
-
-
-    
+        raise HTTPException(status_code=401, detail="Token is expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Could not validate token")

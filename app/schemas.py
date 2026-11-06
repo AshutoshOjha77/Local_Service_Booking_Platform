@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from datetime import datetime
 
 class UserLogin(BaseModel):
@@ -12,6 +12,15 @@ class UserCreate(BaseModel):
     email: EmailStr
     phone: str
     role: str = "customer"
+    @field_validator("role")
+    @classmethod
+    def validate(cls, v: str) -> str:
+        allowed = {"customer", "provider"}
+        v = v.strip().lower()
+        if v  not in allowed:
+            raise ValueError("Role must be either 'provider' or 'customer'")
+        return v
+
 
 class UserResponse(BaseModel):
     id: int

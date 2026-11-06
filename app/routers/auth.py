@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Cookie, Query, status, APIRouter, Depends, Header
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from app import security
 from sqlalchemy.orm import Session
 from app import models
@@ -9,26 +9,32 @@ from app import schemas
 
 
 router = APIRouter()
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth_scheme = HTTPBearer()
 
+# 
 async def get_current_user_id(
-    token: str = Depends(oauth_scheme)) -> int:
-    payload = await security.verify_token(token, expected_token="access") 
+    credentials: HTTPAuthorizationCredentials = Depends(oauth_scheme)
+) -> int:
+    token = credentials.credentials
+    payload = await security.verify_token(token, expected_type="access")
     user_id = payload.get("sub")
-
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: user id not found"
-        )
-
-    return int(user_id)  
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return int(user_id)
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(user_data: schemas.UserCreate, db: Session=Depends(get_db)):
     username_clean = user_data.username.strip().lower()
     email_clean = user_data.email.strip().lower()
     phone_clean = user_data.phone.strip()
+
+    allowed_roles = {"customer", "provider"}
+    role = user_data.role.strip().lower()
+    if role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be customer or provider"
+        )
 
     if db.query(models.User).filter(models.User.username == username_clean).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="The username already exists")
@@ -42,8 +48,9 @@ def register_user(user_data: schemas.UserCreate, db: Session=Depends(get_db)):
         email = email_clean,
         phone = phone_clean,
         hashed_password= security.hash_password(user_data.password),
-        role= user_data.role
+        role= role
     )
+    
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -51,11 +58,11 @@ def register_user(user_data: schemas.UserCreate, db: Session=Depends(get_db)):
 
 @router.post("/login")
 def login_user(payload: schemas.UserLogin, db: Session= Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == payload.username).first()
+    user = db.query(models.User).filter(models.User.username == payload.username.lower().strip()).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
-    if not security.verify_password(payload.password, user.hash_password):
+    if not security.verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
     token_data = {
@@ -84,7 +91,7 @@ async def refresh_access_token(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
     refresh_token = authorization.split(" ")[1]
-    payload = await security.verify_token(refresh_token, expected_token="refresh")
+    payload = await security.verify_token(refresh_token, expected_type="refresh")
 
     new_access_token = security.create_refresh_tokens({
         "sub": payload["sub"],
@@ -102,7 +109,7 @@ async def logout(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header")
     token = authorization.split(" ")[1]
-    await security.verify_token(token, expected_token="access")
+    await security.verify_token(token, expected_type="access")
     await security.blacklist_tokens(token)
     return {"message": "You successfully logged out"}
 

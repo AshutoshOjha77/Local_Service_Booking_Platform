@@ -14,8 +14,8 @@ def create_booking(booking:schemas.BookCreate ,db: Session = Depends(get_db), cu
     user = db.query(models.User).filter(models.User.id == current_user_id).first()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    if str(user.role) != "constumer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Only constumer ")
+    if str(user.role) != "customer":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Only constumer can book")
     service = db.query(models.Services).filter(models.Services.id == booking.service_id).first()
     if service is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="The service you booked isn't found")
