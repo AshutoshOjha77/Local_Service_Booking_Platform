@@ -12,6 +12,11 @@ A FastAPI backend for discovering and booking local services (plumbers, cleaners
 - Elasticsearch search for services
 - Docker Compose for PostgreSQL, Redis, and Elasticsearch
 
+## How to Run Locally
+1. Clone the repository: `git clone https://github.com`
+2. Run the environment: `docker-compose up --build`
+3. Open `http://localhost:8000/docs` to view the interactive FastAPI Swagger documentation.
+
 ## Tech Stack
 
 - FastAPI
